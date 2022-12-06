@@ -14,7 +14,7 @@ Nz = 50;
 % Effective surface temperature
 Te = 68;
 % Periods to run. sqrt(Kappa*T)~3m here, good enough to reach eq
-Periods_Run = 30;
+Periods_Run = 300;
 
 % physical parameters
 Kappa = 1e-6; % Diffusivity
@@ -33,7 +33,8 @@ if max(h_rec)>D
 	disp(strcat(file_name,' encounters water to the surface, PROGRAM TERMINATED WITHOUT SAVING.'));
 	return;
 end
-Dt = 0.1/Kappa*Dx^2;
+
+Dt = 0.01/Kappa*Dx^2;
 
 %% Variables initialization
 % Solve up to 1 grid from the surface to protect the heat conduction val
