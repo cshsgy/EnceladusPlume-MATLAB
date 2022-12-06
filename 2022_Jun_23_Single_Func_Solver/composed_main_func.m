@@ -1,6 +1,6 @@
-function main_func(wmin,wmaxmin,depth)
+function composed_main_func(wmin,wmaxmin,depth)
     % Note: everything to be ensured in SI BASIC UNITS.
-    % STILL NEED TO UPGRADE WITH RUNGE-KUTTA
+    % Runge-kutta is tricky due to the iterative step
     % v = (3-sqrt(2))/sqrt(2);
     % h = 1;
     v = 0.00;
@@ -12,8 +12,8 @@ function main_func(wmin,wmaxmin,depth)
     h_rec = [];
     t_rec = [];
     w_rec = [];
-    dt = 0.1;
-    t_stop = 600000; % nper = 4, t_stop = 1110.4 % For un-normalized results, period=118370, use 500000
+    dt = 0.05; % Time step is limited
+    t_stop = 12500000; % nper = 100, % For un-normalized results, period=118370, use 500000
     iter = 0;
     t = 0;
     last_dvdt = 0;
@@ -79,7 +79,7 @@ function main_func(wmin,wmaxmin,depth)
     % Heat conduction solve up to. Note: characteristic length~0.34m
     Max_x = 0.4;
     % Number of Vertical Levels 
-    Nz = 50;
+    Nz = 100;
     % Effective surface temperature
     Te = 68;
     % Periods to run. sqrt(Kappa*T)~3m here, good enough to reach eq
