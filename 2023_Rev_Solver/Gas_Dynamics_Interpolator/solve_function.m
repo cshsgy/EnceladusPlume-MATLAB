@@ -1,4 +1,4 @@
-function [phi_to_zero,rho_to_zero,mach_top,phi_top,rho_top] = solve_function(Tb,depth,width,r)
+function [phi_to_zero,rho_to_zero,mach_top,phi_top,rho_top,phi0] = solve_function(Tb,depth,width,r)
 % Fixed constants
 kt = 2.4; % Thermal conductivity
 lv = 2.8e6; % Latent heat of vaporization
@@ -10,6 +10,7 @@ Cd = 0.002;
 
 % Calculate the boundaries
 phi = (1-r)*evaporation(ec,bv,Tb);
+phi0 = phi;
 rho0 = vapor_press(Tb)/(rg*Tb)*r;
 
 % integrate the f(z)
