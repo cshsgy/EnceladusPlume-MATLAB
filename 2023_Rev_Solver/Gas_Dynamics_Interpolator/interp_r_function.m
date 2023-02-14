@@ -9,7 +9,7 @@ if iw==0
         iw = 1; % extrap for smaller width...
 end
 if id*iT*iw==0 || id==length(depth) || iw==length(delta)
-	disp('Interpolation function: out of range!');
+	% disp('Interpolation function: out of range!');
         r = nan;
         phi = nan;
 	phi0 = nan;
