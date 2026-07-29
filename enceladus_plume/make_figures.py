@@ -261,7 +261,7 @@ def plot(cache):
     ax[0].set_xscale("log")
     ax[0].set_xlabel("initial crack width $w_0$ [mm]")
     ax[0].set_ylabel("cycles to reach overflow")
-    ax[0].set_title("(a) Sealing is fast from any starting width")
+    ax[0].set_title("(a)", loc="left")
     ax[0].grid(alpha=0.3, which="both"); ax[0].legend(fontsize=8, loc="upper left")
     # secondary axis: cycles -> days (Enceladus diurnal period)
     axd = ax[0].secondary_yaxis("right", functions=(lambda n: n * P_days,
@@ -272,7 +272,7 @@ def plot(cache):
     ax[1].plot(dw_mm, wstar, "ks-", ms=5)
     ax[1].set_xlabel("absolute tidal swing $\\Delta w$ [mm]")
     ax[1].set_ylabel("steady-state seal depth $w_{\\rm eff}^*$ [mm]")
-    ax[1].set_title("(b) Swing sets only how far it seals"); ax[1].grid(alpha=0.3)
+    ax[1].set_title("(b)", loc="left"); ax[1].grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "wall_seal_regime.pdf"))
     print("wrote wall_seal_regime.pdf")
 
@@ -285,7 +285,7 @@ def plot(cache):
     ax[0].axvline(float(d["phi_a"]), ls="--", c="C3", label=f"approach {float(d['phi_a']):.0f}$^\\circ$")
     ax[0].set_xlim(0, 360); ax[0].set_xticks(range(0, 361, 90))
     ax[0].set_xlabel("mean anomaly [deg]"); ax[0].set_ylabel("mass flux (normalized)")
-    ax[0].set_title("(a) Two gas-flux peaks"); ax[0].legend(fontsize=8)
+    ax[0].set_title("(a)", loc="left"); ax[0].legend(fontsize=8)
     xs, ys, cols = d["xs"], d["ys"], d["cols"]
     # drop degenerate cases where the widening peak is choked to ~0 (huge ratio /
     # vanishing emission) -- they would collapse the log-log scale.
@@ -305,7 +305,7 @@ def plot(cache):
     ax[1].set_yscale("log")
     ax[1].set_xlabel("widening-peak emission [kg/s]")
     ax[1].set_ylabel("approach / widening (= main / secondary)")
-    ax[1].set_title("(b) Steady-state cases vs Enceladus"); ax[1].legend(fontsize=7, loc="best")
+    ax[1].set_title("(b)", loc="left"); ax[1].legend(fontsize=7, loc="best")
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "peak_predictor.pdf"))
     print("wrote peak_predictor.pdf")
 
@@ -317,7 +317,6 @@ def plot(cache):
             label=f"near close-up ($w_{{\\rm eff}}$={float(d['clos_we_l'])*1e3:.0f} mm)")
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("mass flux [kg s$^{-1}$]")
-    ax.set_title("Mass flux as a crack seals ($L$=5 km, $\\Delta w$=20 mm)")
     ax.legend(fontsize=9); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "closing_massflux.pdf"))
     print("wrote closing_massflux.pdf")
@@ -339,7 +338,6 @@ def plot(cache):
     ax.set_ylim(1e3, 1e-2)                      # depth increases downward
     ax.set_xlabel("condensation flux [kg m$^{-2}$ s$^{-1}$]")
     ax.set_ylabel("depth below surface [m]")
-    ax.set_title("Condensation is lip-concentrated and phase-dependent")
     ax.legend(fontsize=8, loc="lower left"); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "condensation_profiles.pdf"))
     print("wrote condensation_profiles.pdf")
@@ -362,7 +360,6 @@ def plot(cache):
         ax.axvline((phi + off) % 360.0, color=co, ls="--", lw=1.3, zorder=3)
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90)); ax.set_ylim(0, 1.08)
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("mass flux (normalized)")
-    ax.set_title("Model peaks fall in the observed peak phases")
     ax.legend(fontsize=8, loc="upper left"); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "phase_overlay.pdf"))
     print("wrote phase_overlay.pdf")

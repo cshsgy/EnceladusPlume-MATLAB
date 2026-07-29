@@ -306,7 +306,6 @@ def plot_ensemble(result, lookup, cfg=None, out=None):
                    f"($\\chi^2$/dof={e['chi2_red']:.2f})"))
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("slab density [kg km$^{-1}$]")
-    ax.set_title("Ensemble averaging over tiger-stripe segments")
     ax.legend(fontsize=8); ax.grid(alpha=0.3)
     out = out or os.path.normpath(os.path.join(
         _HERE, "..", "writing", "manuscript", "Figures", "diurnal_fit_ensemble.pdf"))
@@ -604,7 +603,7 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     ax.plot(grid, model, "-", color="tab:red", lw=1.8, label=slab)
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("slab density [kg km$^{-1}$]")
-    ax.set_title("(a) Diurnal profile: model fit to observed emission")
+    ax.set_title("(a)", loc="left")
     ax.legend(fontsize=8); ax.grid(alpha=0.3)
 
     # (b) the fitted crack-width forcing shape (same mean-anomaly frame as (a)),
@@ -621,7 +620,7 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     axb.set_xlim(0, 360); axb.set_xticks(range(0, 361, 90)); axb.set_ylim(-0.03, 1.05)
     axb.set_xlabel("mean anomaly [deg]")
     axb.set_ylabel(r"normalized crack width $(\delta-\delta_{\min})/\Delta\delta$")
-    axb.set_title("(b) Fitted double-periodic width forcing")
+    axb.set_title("(b)", loc="left")
     axb.legend(fontsize=8, loc="upper right"); axb.grid(alpha=0.3)
 
     out = out or os.path.normpath(os.path.join(
