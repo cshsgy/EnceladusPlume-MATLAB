@@ -145,7 +145,7 @@ def compute(lookup, cache, recompute=False):
     have = {} if recompute or not os.path.exists(cache) else dict(np.load(cache))
 
     # --- Fig 3: seal sweep (attractor endpoint w_eff*, and per-cycle supply) ---
-    # For a grid of tidal swings we record where the crack seals to (w_eff*, the
+    # For a grid of tidal perturbations we record where the crack seals to (w_eff*, the
     # overflow attractor) and how fast it narrows (deposition_rate, mm/cycle per
     # wall). Together these give both panels of the attractor figure.
     if "seal_dw" not in have:
@@ -169,7 +169,7 @@ def compute(lookup, cache, recompute=False):
         print("computed Fig 4a (example curve)")
 
     # --- Fig 4b: steady-state scatter (span shallow->deep to cover the observed) ---
-    # The two peaks coexist over a small-swing / small-width window at shallow
+    # The two peaks coexist over a small-perturbation / small-width window at shallow
     # depth (low ratio) and a broader window at depth (high ratio); sample both.
     if "xs" not in have:
         grid = [(L, dw, we)
@@ -248,9 +248,9 @@ def plot(cache):
     P_days = _cfg().physical.orbital_period / 86400.0
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.3))
 
-    # (a) time to reach the attractor vs initial crack width, for several swings.
+    # (a) time to reach the attractor vs initial crack width, for several perturbations.
     # A crack narrows by 2*dep per cycle until w_eff hits w_eff*(dw); the number
-    # of cycles is (w0 - w_eff*) / (2*dep).  Curves for a subset of swings.
+    # of cycles is (w0 - w_eff*) / (2*dep).  Curves for a subset of perturbations.
     w0 = np.geomspace(12.0, 1000.0, 120)    # initial width, 1.2 cm -> 1 m
     sub = [1, 3, 5, 7]                       # dw = 6, 11, 20, 34 mm
     cols = plt.get_cmap("viridis")(np.linspace(0.15, 0.85, len(sub)))
@@ -270,7 +270,7 @@ def plot(cache):
 
     # (b) where it seals to: the overflow attractor w_eff*(dw).
     ax[1].plot(dw_mm, wstar, "ks-", ms=5)
-    ax[1].set_xlabel("absolute tidal swing $\\Delta w$ [mm]")
+    ax[1].set_xlabel("tidal perturbation $\\Delta w$ [mm]")
     ax[1].set_ylabel("steady-state seal depth $w_{\\rm eff}^*$ [mm]")
     ax[1].set_title("(b)", loc="left"); ax[1].grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "wall_seal_regime.pdf"))

@@ -9,7 +9,7 @@ The crack is placed on the self-sealing attractor, so the effective width is not
 free but set by the overflow seal depth ``w_eff*(dw, L)`` from
 ``evolve_geometry_coupled``. Free parameters:
 
-    dw   : absolute tidal swing            [m]
+    dw   : absolute tidal perturbation            [m]
     L    : effective source depth          [m]
     phi0 : global mean-anomaly phase offset [deg]
     A    : amplitude (slab density per unit model flux) -- a nuisance scale
@@ -178,7 +178,7 @@ def fit(lookup, cfg=None):
     for i, dw in enumerate(DW_GRID):
         for j, L in enumerate(L_GRID):
             cfg.physical.equilibrium_depth = float(L)
-            # w_eff* from single-cosine attractor (swing is preserved by the
+            # w_eff* from single-cosine attractor (perturbation is preserved by the
             # forcing normalization, so the seal depth is ~harmonic-independent).
             res = evolve_geometry_coupled(cfg, float(dw), n_e=7,
                                           w_eff_max=0.06, w_floor=2e-3)
