@@ -74,7 +74,8 @@ def _weights(ma_o, sig):
 
 
 # Continuous MLE bounds: (dw[mm], L[km], phi2[deg], 2f-scale, sigma_phi[deg]).
-MLE_BOUNDS = [(6.0, 30.0), (2.0, 22.0), (0.0, 180.0), (0.0, 5.0), (0.0, 35.0)]
+# params: dw[mm], L[km], phi2[deg], alpha (2f/1f amplitude ratio), sigma_phi[deg]
+MLE_BOUNDS = [(6.0, 30.0), (2.0, 22.0), (0.0, 180.0), (0.0, 1.5), (0.0, 35.0)]
 
 
 def _cfg():
@@ -428,7 +429,7 @@ def fit_mle(lookup, cfg=None, seed=0):
 _EMU_DW = np.array([7, 10, 14, 20, 27]) * 1e-3
 _EMU_L = np.array([4, 6, 9, 14, 20]) * 1e3
 _EMU_PHI2 = np.array([0.0, 45.0, 90.0, 135.0])
-_EMU_SCALE = np.array([0.0, 1.5, 3.0, 4.5])
+_EMU_SCALE = np.array([0.0, 0.5, 1.0, 1.5])   # alpha (2f/1f amplitude ratio)
 _EMU_MA = np.arange(0.0, 360.0, 1.0)
 
 
@@ -561,7 +562,7 @@ def fit_mcmc(lookup, cfg=None, nsteps=1500, nwalkers=32, seed=0, emu_cache=None)
     rgi = build_flux_emulator(lookup, cfg, cache=emu_cache)
     log_prob = make_log_prob(rgi, ma_o, y_o, w_o)
     # start walkers in a small ball around the MLE
-    mle = np.array([9.3, 6.9, 82.0, 3.48, 22.0])
+    mle = np.array([9.3, 6.9, 82.0, 0.87, 22.0])
     lo = np.array([b[0] for b in MLE_BOUNDS]); hi = np.array([b[1] for b in MLE_BOUNDS])
     rng = np.random.default_rng(seed)
     p0 = np.clip(mle + rng.normal(0, [1.5, 1.5, 15, 0.4, 3], size=(nwalkers, 5)), lo + 1e-6, hi - 1e-6)
@@ -569,9 +570,6 @@ def fit_mcmc(lookup, cfg=None, nsteps=1500, nwalkers=32, seed=0, emu_cache=None)
     chain = run_mcmc(log_prob, p0, nsteps)
     burn = nsteps // 3
     samples = chain[burn:].reshape(-1, 5)
-    # report the 2f term as alpha, the 2f/1f amplitude ratio (internal scale / 4;
-    # the -(2/3),(1/6) forcing convention normalizes away, leaving the ratio)
-    samples[:, 3] = samples[:, 3] / 4.0
     q = np.percentile(samples, [16, 50, 84], axis=0)
     return dict(samples=samples, med=q[1], lo=q[1] - q[0], up=q[2] - q[1],
                 labels=["dw [mm]", "L [km]", r"$\phi_2$ [deg]",
@@ -602,7 +600,7 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     ax.errorbar(ma_o, y_o, yerr=sig, fmt="o", ms=4, color="k", lw=1,
                 capsize=2, label="observed (digitized, Ingersoll+ 2020)")
     slab = (f"best fit: $\\Delta w$={dw*1e3:.0f} mm, $L$={L/1e3:.0f} km, "
-            f"$\\alpha$={hs/4:.1f}@{hp:.0f}$^\\circ$"
+            f"$\\alpha$={hs:.1f}@{hp:.0f}$^\\circ$"
             + (f", $\\sigma_\\phi$={sigma:.0f}$^\\circ$" if sigma > 0 else ""))
     ax.plot(grid, model, "-", color="tab:red", lw=1.8, label=slab)
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
@@ -619,10 +617,8 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     prof_sin = width_scale(ph, 2.0, forcing_model=FORCING_SINGLE_COSINE) - 1.0
     axb.plot(grid, prof_sin, "--", color="0.55", lw=1.6,
              label=r"single cosine ($\alpha=0$)")
-    # report alpha as the 2f/1f amplitude ratio (= internal harm_scale / 4; the
-    # -(2/3),(1/6) code convention normalizes away, leaving the ratio hs/4)
     axb.plot(grid, prof_fit, "-", color="tab:blue", lw=2.0,
-             label=rf"fitted double-cosine ($\alpha$={hs/4:.1f}, $\phi_2$={hp:.0f}$^\circ$)")
+             label=rf"fitted double-cosine ($\alpha$={hs:.1f}, $\phi_2$={hp:.0f}$^\circ$)")
     axb.set_xlim(0, 360); axb.set_xticks(range(0, 361, 90)); axb.set_ylim(-0.03, 1.05)
     axb.set_xlabel("mean anomaly [deg]")
     axb.set_ylabel(r"normalized crack width $(\delta-\delta_{\min})/\Delta\delta$")
@@ -662,7 +658,7 @@ def main():
     lut = GasLookupTable(args.lookup, clean=True)
     if args.mcmc:
         r = fit_mcmc(lut)
-        plot_corner(r["samples"], r["labels"], truths=[9.3, 6.9, 82.0, 3.48 / 4.0, 22.0])
+        plot_corner(r["samples"], r["labels"], truths=[9.3, 6.9, 82.0, 0.87, 22.0])
         print("\n=== POSTERIOR (median +/- 68% credible) ===")
         for lab, m, dn, up in zip(r["labels"], r["med"], r["lo"], r["up"]):
             print(f"  {lab:14}= {m:7.2f}  (+{up:.2f} / -{dn:.2f})")

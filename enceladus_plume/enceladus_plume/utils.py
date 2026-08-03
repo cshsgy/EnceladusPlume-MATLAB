@@ -54,21 +54,27 @@ def width_scale(
         eps = 0.5 * (wmaxmin - 1.0)
         scale = 1.0 + eps * (1.0 - np.cos(phase_arr))
     elif forcing_model == FORCING_DOUBLE_COSINE:
+        # fundamental (unit amplitude) + second harmonic at amplitude 1/4,
+        # then normalized to [0,1] and rescaled to span [wmin, wmax].
         sample_phase = np.linspace(0.0, 2.0 * np.pi, 4096, endpoint=False) - phase_shift
-        raw_profile = -(2.0 / 3.0) * np.cos(phase_arr) + (1.0 / 6.0) * np.cos(2.0 * phase_arr)
-        sample_raw = -(2.0 / 3.0) * np.cos(sample_phase) + (1.0 / 6.0) * np.cos(2.0 * sample_phase)
+        raw_profile = -np.cos(phase_arr) + 0.25 * np.cos(2.0 * phase_arr)
+        sample_raw = -np.cos(sample_phase) + 0.25 * np.cos(2.0 * sample_phase)
         profile = _normalize_periodic_profile(raw_profile, sample_raw)
         scale = 1.0 + (wmaxmin - 1.0) * profile
     elif forcing_model == FORCING_SHIFTED_DOUBLE_COSINE:
+        # fundamental (unit amplitude) + second harmonic whose amplitude
+        # ``second_harmonic_scale`` (= alpha) is its ratio to the fundamental;
+        # the profile is normalized to [0,1] and rescaled to span [wmin, wmax],
+        # so only this ratio and the phase matter. alpha=0 -> single cosine.
         harmonic_phase = np.deg2rad(second_harmonic_phase_deg)
         sample_phase = np.linspace(0.0, 2.0 * np.pi, 4096, endpoint=False) - phase_shift
         raw_profile = (
-            -(2.0 / 3.0) * np.cos(phase_arr)
-            + second_harmonic_scale * (1.0 / 6.0) * np.cos(2.0 * (phase_arr - harmonic_phase))
+            -np.cos(phase_arr)
+            + second_harmonic_scale * np.cos(2.0 * (phase_arr - harmonic_phase))
         )
         sample_raw = (
-            -(2.0 / 3.0) * np.cos(sample_phase)
-            + second_harmonic_scale * (1.0 / 6.0) * np.cos(2.0 * (sample_phase - harmonic_phase))
+            -np.cos(sample_phase)
+            + second_harmonic_scale * np.cos(2.0 * (sample_phase - harmonic_phase))
         )
         profile = _normalize_periodic_profile(raw_profile, sample_raw)
         scale = 1.0 + (wmaxmin - 1.0) * profile
