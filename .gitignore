@@ -24,3 +24,5 @@ cpp/build/
 # Local caches
 .cache/
 .mplconfig/
+# Manuscript lives in its own Overleaf repo (enceladus_plume_paper)
+writing/
