@@ -26,3 +26,8 @@ cpp/build/
 .mplconfig/
 # Manuscript lives in its own Overleaf repo (enceladus_plume_paper)
 writing/
+
+# Agent / spec scaffolding (local only)
+.claude/
+.cursor/
+openspec/
