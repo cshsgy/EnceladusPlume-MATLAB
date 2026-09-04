@@ -3,7 +3,7 @@
 
 Produces (into writing/manuscript/Figures/):
   * wall_seal_regime.pdf       (Fig. 3) -- the self-sealing attractor
-  * condensation_profiles.pdf  -- lip-concentrated, phase-dependent condensation
+  * condensation_profiles.pdf  -- mouth-concentrated, phase-dependent condensation
   * peak_predictor.pdf         (Fig. 4) -- the two mass-flux peaks
   * closing_massflux.pdf       -- diurnal flux as a crack seals
   * phase_overlay.pdf          -- model peaks vs observed peak phases
@@ -257,9 +257,9 @@ def plot(cache):
     for c, k in zip(cols, sub):
         ncyc = np.maximum(w0 - wstar[k], 0.0) / (2.0 * dep[k])
         ax[0].plot(w0, ncyc, "-", color=c, lw=2,
-                   label=f"$\\Delta w$={dw_mm[k]:.0f} mm")
+                   label=f"$\\Delta\\delta$={dw_mm[k]:.0f} mm")
     ax[0].set_xscale("log")
-    ax[0].set_xlabel("initial crack width $w_0$ [mm]")
+    ax[0].set_xlabel("initial crack width $\\delta_0$ [mm]")
     ax[0].set_ylabel("cycles to reach overflow")
     ax[0].set_title("(a)", loc="left")
     ax[0].grid(alpha=0.3, which="both"); ax[0].legend(fontsize=8, loc="upper left")
@@ -270,8 +270,8 @@ def plot(cache):
 
     # (b) where it seals to: the overflow attractor w_eff*(dw).
     ax[1].plot(dw_mm, wstar, "ks-", ms=5)
-    ax[1].set_xlabel("tidal perturbation $\\Delta w$ [mm]")
-    ax[1].set_ylabel("steady-state seal depth $w_{\\rm eff}^*$ [mm]")
+    ax[1].set_xlabel("tidal width amplitude $\\Delta\\delta$ [mm]")
+    ax[1].set_ylabel("closure width $\\delta_{\\rm eff}^*$ [mm]")
     ax[1].set_title("(b)", loc="left"); ax[1].grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "wall_seal_regime.pdf"))
     print("wrote wall_seal_regime.pdf")
@@ -281,8 +281,8 @@ def plot(cache):
     MA, g = d["MA"], d["g"]
     gm, gs = _psmooth(MA, g / g.max())
     ax[0].plot(gm, gs, "k-")
-    ax[0].axvline(float(d["phi_w"]), ls="--", c="C0", label=f"widening {float(d['phi_w']):.0f}$^\\circ$")
-    ax[0].axvline(float(d["phi_a"]), ls="--", c="C3", label=f"approach {float(d['phi_a']):.0f}$^\\circ$")
+    ax[0].axvline(float(d["phi_w"]), ls="--", c="C0", label=f"opening-phase peak {float(d['phi_w']):.0f}$^\\circ$")
+    ax[0].axvline(float(d["phi_a"]), ls="--", c="C3", label=f"closing-phase peak {float(d['phi_a']):.0f}$^\\circ$")
     ax[0].set_xlim(0, 360); ax[0].set_xticks(range(0, 361, 90))
     ax[0].set_xlabel("mean anomaly [deg]"); ax[0].set_ylabel("mass flux (normalized)")
     ax[0].set_title("(a)", loc="left"); ax[0].legend(fontsize=8)
@@ -303,8 +303,8 @@ def plot(cache):
     ax[1].axhline(1.0, color="grey", ls=":")
     ax[1].set_xscale("log")
     ax[1].set_yscale("log")
-    ax[1].set_xlabel("widening-peak emission [kg/s]")
-    ax[1].set_ylabel("approach / widening (= main / secondary)")
+    ax[1].set_xlabel("opening-phase peak emission [kg/s]")
+    ax[1].set_ylabel("closing-phase / opening-phase (= main / secondary)")
     ax[1].set_title("(b)", loc="left"); ax[1].legend(fontsize=7, loc="best")
     fig.tight_layout(); fig.savefig(os.path.join(OUT, "peak_predictor.pdf"))
     print("wrote peak_predictor.pdf")
@@ -312,9 +312,9 @@ def plot(cache):
     # Fig 5: closing-up crack mass flux (early wide vs near close-up)
     fig, ax = plt.subplots(figsize=(6.2, 4.3))
     ax.plot(d["clos_MA_e"], d["clos_g_e"], color="k", ls="-", lw=1.8,
-            label=f"early ($w_{{\\rm eff}}$={float(d['clos_we_e'])*1e3:.0f} mm, wide)")
+            label=f"early ($\\delta_{{\\rm eff}}$={float(d['clos_we_e'])*1e3:.0f} mm, wide)")
     ax.plot(d["clos_MA_l"], d["clos_g_l"], color="k", ls="--", lw=1.8,
-            label=f"near close-up ($w_{{\\rm eff}}$={float(d['clos_we_l'])*1e3:.0f} mm)")
+            label=f"near closure ($\\delta_{{\\rm eff}}$={float(d['clos_we_l'])*1e3:.0f} mm)")
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("mass flux [kg s$^{-1}$]")
     ax.legend(fontsize=9); ax.grid(alpha=0.3)
@@ -323,9 +323,9 @@ def plot(cache):
 
     # Fig 6: condensation vs depth-in-crack at three cycle phases
     fig, ax = plt.subplots(figsize=(6.2, 4.3))
-    labels = {"A": ("wide crack, neutral level", "tab:green"),
-              "B": ("narrowing, high water level", "tab:red"),
-              "C": ("widening, low water level", "tab:blue")}
+    labels = {"A": ("wide crack, equilibrium level", "tab:green"),
+              "B": ("closing, high water level", "tab:red"),
+              "C": ("opening, low water level", "tab:blue")}
     for tag, (lab, co) in labels.items():
         dd, dep = d[f"cond_d{tag}"], d[f"cond_dep{tag}"]
         ma, hD, wmm = d[f"cond_meta{tag}"]

@@ -599,7 +599,7 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     # (a) observed emission vs the best-fit diurnal profile
     ax.errorbar(ma_o, y_o, yerr=sig, fmt="o", ms=4, color="k", lw=1,
                 capsize=2, label="observed (digitized, Ingersoll+ 2020)")
-    slab = (f"best fit: $\\Delta w$={dw*1e3:.0f} mm, $L$={L/1e3:.0f} km, "
+    slab = (f"best fit: $\\Delta\\delta$={dw*1e3:.0f} mm, $L$={L/1e3:.0f} km, "
             f"$\\alpha$={hs:.1f}@{hp:.0f}$^\\circ$"
             + (f", $\\sigma_\\phi$={sigma:.0f}$^\\circ$" if sigma > 0 else ""))
     ax.plot(grid, model, "-", color="tab:red", lw=1.8, label=slab)
