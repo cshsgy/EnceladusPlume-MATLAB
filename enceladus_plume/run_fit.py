@@ -18,7 +18,11 @@ free but set by the overflow seal depth ``w_eff*(dw, L)`` from
 squares) at every (dw, L) grid node, so the nonlinear search is only over the
 2-D (dw, L) grid; a parabolic refine and Delta-chi^2 = 1 give uncertainties.
 
-Usage:  python run_fit.py [--lookup PATH] [--out PATH]
+Usage:  python run_fit.py [--lookup PATH] [--out PATH] [--mle | --refine | --plot-only | --ensemble | --mcmc]
+
+All caches (gas lookup table, w_eff* grid, adopted fit result) live in
+``results/`` and are committed, so ``--plot-only`` / ``--ensemble`` redraw the
+manuscript figures without any refit.
 """
 from __future__ import annotations
 
@@ -42,6 +46,49 @@ from enceladus_plume.gas_dynamics.lookup import GasLookupTable
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _DATA = os.path.join(_HERE, "data", "observed_diurnal.csv")
+
+# Persistent, version-controlled cache of the fit products, so that redrawing a
+# figure (or re-reporting the numbers) never requires re-running the fit or
+# rebuilding the gas lookup table / w_eff* grid.
+_RESULTS = os.path.join(_HERE, "results")
+DEFAULT_LOOKUP = os.path.join(_RESULTS, "gas_lut.npz")        # gas-column lookup table
+DEFAULT_WEFF_CACHE = os.path.join(_RESULTS, "weff_grid.npz")  # on-attractor w_eff*(dw, L)
+DEFAULT_RESULT = os.path.join(_RESULTS, "diurnal_fit.json")   # adopted best fit (mode B)
+
+# The manuscript lives in its own repo; figures are written straight into it.
+_PAPER_FIGS = os.environ.get("ENC_PAPER_FIGS", os.path.normpath(
+    os.path.join(_HERE, "..", "..", "enceladus_plume_paper", "Figures")))
+if not os.path.isdir(_PAPER_FIGS):
+    _PAPER_FIGS = os.path.normpath(os.path.join(_HERE, "..", "writing", "manuscript", "Figures"))
+
+
+def _fig_path(name):
+    return os.path.join(_PAPER_FIGS, name)
+
+
+def save_result(path, r):
+    """Save a fit result as JSON (.json) or npz (.npz); JSON is the committed form."""
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    if path.endswith(".npz"):
+        np.savez(path, **{k: v for k, v in r.items()})
+        return
+    import json
+    out = {}
+    for k, v in r.items():
+        v = np.asarray(v)
+        out[k] = v.tolist() if v.ndim else (v.item() if v.dtype.kind in "biuf" else str(v))
+    with open(path, "w") as f:
+        json.dump(out, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def load_result(path):
+    """Load a fit result saved by :func:`save_result` (JSON or npz)."""
+    if path.endswith(".npz"):
+        return dict(np.load(path))
+    import json
+    with open(path) as f:
+        return {k: (np.asarray(v) if isinstance(v, list) else v) for k, v in json.load(f).items()}
 TB = 272.6
 
 # (dw, L) search grid. w_eff* (overflow seal depth) is computed per cell.
@@ -308,8 +355,7 @@ def plot_ensemble(result, lookup, cfg=None, out=None):
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90))
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("slab density [kg km$^{-1}$]")
     ax.legend(fontsize=8); ax.grid(alpha=0.3)
-    out = out or os.path.normpath(os.path.join(
-        _HERE, "..", "writing", "manuscript", "Figures", "diurnal_fit_ensemble.pdf"))
+    out = out or _fig_path("diurnal_fit_ensemble.pdf")
     fig.tight_layout(); fig.savefig(out)
     print(f"wrote {out}")
     print(f"  ensemble sigma_phi = {e['sigma']:.0f} deg   "
@@ -326,7 +372,7 @@ def build_weff_interp(cfg, verbose=True):
     Returns weff_of(dw_mm, L_km) -> w_eff [m].
     """
     from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
-    cache = os.path.join(tempfile.gettempdir(), "weff_grid.npz")
+    cache = DEFAULT_WEFF_CACHE
     if os.path.exists(cache):
         d = np.load(cache)
         pts, vals = d["pts"], d["vals"]
@@ -418,6 +464,45 @@ def fit_mle(lookup, cfg=None, seed=0):
                          harm_scale=scale, harm_phase=phi2)
     o = np.argsort(MA); g, fs = _ensemble_smooth(MA[o], fl[o], sigma)
     p0, A, _ = _best_phi_A(g, fs, ma_o, y_o, w_o)
+    return dict(dw=dw_mm * 1e-3, L=L_km * 1e3, w_eff=we, harm_scale=float(scale),
+                harm_phase=float(phi2), sigma=float(sigma), phi0=float(p0), A=float(A),
+                chi2=float(chi2), dof=int(dof), chi2_red=float(chi2 / dof))
+
+
+def refine_local(start, lookup, cfg=None, maxiter=30):
+    """Deterministic Nelder-Mead refinement from a stored fit result.
+
+    This is the procedure that produced the adopted mode-B fit (see
+    analysis/two_modes.py): starting from ``start`` (dw, L, phi2, alpha, sigma),
+    polish locally and re-derive w_eff*, phi0, A and chi^2. Re-running it from the
+    committed result reproduces the manuscript numbers.
+    """
+    from scipy.optimize import minimize
+    cfg = cfg or _cfg()
+    ma_o, y_o, sig = np.loadtxt(_DATA, delimiter=",", skiprows=1).T
+    w_o = _weights(ma_o, sig)
+    weff_of = build_weff_interp(cfg)
+    args = (weff_of, lookup, cfg, ma_o, y_o, w_o)
+    x0 = [float(start["dw"]) * 1e3, float(start["L"]) / 1e3,
+          float(start.get("harm_phase", 0.0)), float(start.get("harm_scale", 0.0)),
+          float(start.get("sigma", 0.0))]
+    t0 = time.time()
+    print(f"  local refinement from {np.round(x0, 2)} ...", flush=True)
+    loc = minimize(lambda th: _neg_loglike(np.asarray(th), *args), x0, method="Nelder-Mead",
+                   bounds=MLE_BOUNDS, options=dict(xatol=1e-2, fatol=1e-2, maxiter=maxiter))
+    x = loc.x
+    chi2 = 2.0 * _neg_loglike(x, *args)
+    dof = len(ma_o) - 5
+    dw_mm, L_km, phi2, scale, sigma = x
+    we = weff_of(dw_mm, L_km)
+    cfg.physical.equilibrium_depth = L_km * 1e3
+    MA, fl = _flux_curve(cfg, L_km * 1e3, dw_mm * 1e-3, we, lookup,
+                         harm_scale=scale, harm_phase=phi2)
+    o = np.argsort(MA); g, fs = _ensemble_smooth(MA[o], fl[o], sigma)
+    p0, A, _ = _best_phi_A(g, fs, ma_o, y_o, w_o)
+    print(f"  refined [{(time.time()-t0)/60:.1f} min]: dw={dw_mm:.2f} mm L={L_km:.2f} km "
+          f"phi2={phi2:.1f} alpha={scale:.3f} sigma={sigma:.1f} chi2/dof={chi2/dof:.3f}",
+          flush=True)
     return dict(dw=dw_mm * 1e-3, L=L_km * 1e3, w_eff=we, harm_scale=float(scale),
                 harm_phase=float(phi2), sigma=float(sigma), phi0=float(p0), A=float(A),
                 chi2=float(chi2), dof=int(dof), chi2_red=float(chi2 / dof))
@@ -548,8 +633,7 @@ def plot_corner(samples, labels, truths=None, out=None):
             else:
                 a.set_yticklabels([])
             a.tick_params(labelsize=6)
-    out = out or os.path.normpath(os.path.join(
-        _HERE, "..", "writing", "manuscript", "Figures", "diurnal_fit_posterior.pdf"))
+    out = out or _fig_path("diurnal_fit_posterior.pdf")
     fig.tight_layout(); fig.savefig(out); print(f"wrote {out}")
 
 
@@ -625,16 +709,17 @@ def plot_overlay(result, lookup, cfg=None, out=None):
     axb.set_title("(b)", loc="left")
     axb.legend(fontsize=8, loc="upper right"); axb.grid(alpha=0.3)
 
-    out = out or os.path.normpath(os.path.join(
-        _HERE, "..", "writing", "manuscript", "Figures", "diurnal_fit.pdf"))
+    out = out or _fig_path("diurnal_fit.pdf")
     fig.tight_layout(); fig.savefig(out)
     print(f"wrote {out}")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--lookup", default=os.path.join(tempfile.gettempdir(), "encfig_lut.npz"))
-    ap.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "diurnal_fit.npz"))
+    ap.add_argument("--lookup", default=DEFAULT_LOOKUP,
+                    help="gas lookup table (cached; rebuilt only if missing)")
+    ap.add_argument("--out", default=DEFAULT_RESULT,
+                    help="fit result file (.json or .npz); read by the plot modes")
     ap.add_argument("--plot-only", action="store_true",
                     help="skip fitting; load --out and just (re)draw the overlay")
     ap.add_argument("--ensemble", action="store_true",
@@ -643,13 +728,16 @@ def main():
                     help="continuous max-likelihood fit (global DE + local refine)")
     ap.add_argument("--mcmc", action="store_true",
                     help="posterior via emulator + ensemble MCMC; writes corner plot")
+    ap.add_argument("--refine", action="store_true",
+                    help="deterministic local (Nelder-Mead) refinement starting from the "
+                         "result in --out; saves back to --out and redraws the overlay")
     args = ap.parse_args()
     if args.ensemble:
-        r = dict(np.load(args.out))
+        r = load_result(args.out)
         plot_ensemble(r, GasLookupTable(args.lookup, clean=True))
         return
     if args.plot_only:
-        r = dict(np.load(args.out))
+        r = load_result(args.out)
         plot_overlay(r, GasLookupTable(args.lookup, clean=True))
         return
     if not os.path.exists(args.lookup):
@@ -666,9 +754,15 @@ def main():
         np.savez(os.path.join(tempfile.gettempdir(), "diurnal_posterior.npz"),
                  samples=r["samples"], med=r["med"], lo=r["lo"], up=r["up"])
         return
+    if args.refine:
+        r = refine_local(load_result(args.out), lut)
+        save_result(args.out, r)
+        print(f"  saved -> {args.out}")
+        plot_overlay(r, lut)
+        return
     if args.mle:
         r = fit_mle(lut)
-        np.savez(args.out, **{k: v for k, v in r.items()})
+        save_result(args.out, r)
         print("\n=== MLE FIT (continuous) ===")
         print(f"  dw    = {r['dw']*1e3:.1f} mm")
         print(f"  L     = {r['L']/1e3:.1f} km")
@@ -678,11 +772,10 @@ def main():
         print(f"  phi0  = {r['phi0']:.0f} deg   A = {r['A']:.3e}")
         print(f"  chi2/dof = {r['chi2']:.1f}/{r['dof']} = {r['chi2_red']:.2f}")
         print(f"  saved -> {args.out}")
-        plot_overlay(r, lut, out=os.path.normpath(os.path.join(
-            _HERE, "..", "writing", "manuscript", "Figures", "diurnal_fit_mle.pdf")))
+        plot_overlay(r, lut, out=_fig_path("diurnal_fit_mle.pdf"))
         return
     r = fit(lut)
-    np.savez(args.out, **{k: v for k, v in r.items()})
+    save_result(args.out, r)
     print("\n=== BEST FIT (on-attractor) ===")
     print(f"  dw   = {r['dw']*1e3:.1f} mm   (Delta-chi2=1: "
           f"{r['dw_1sig'][0]*1e3:.0f}-{r['dw_1sig'][1]*1e3:.0f} mm)")

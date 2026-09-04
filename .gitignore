@@ -9,6 +9,8 @@
 
 *.npz
 *.pkl
+# ...except the small committed fit caches (lookup table, w_eff* grid)
+!enceladus_plume/results/*.npz
 
 # Python build / cache
 __pycache__/

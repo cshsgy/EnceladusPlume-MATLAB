@@ -1,7 +1,7 @@
 import numpy as np, run_fit as R, time
 from scipy.optimize import minimize
 from enceladus_plume.gas_dynamics.lookup import GasLookupTable
-lut=GasLookupTable('/tmp/encfig_lut.npz',clean=True); cfg=R._cfg()
+lut=GasLookupTable(R.DEFAULT_LOOKUP,clean=True); cfg=R._cfg()
 ma_o,y_o,sig=np.loadtxt(R._DATA,delimiter=',',skiprows=1).T
 w_o=R._weights(ma_o,sig); weff_of=R.build_weff_interp(cfg)
 args=(weff_of,lut,cfg,ma_o,y_o,w_o); dof=len(ma_o)-5
@@ -16,7 +16,7 @@ def refine(x0, tag):
     o=np.argsort(MA); g,fs=R._ensemble_smooth(MA[o],fl[o],s); p0,A,_=R._best_phi_A(g,fs,ma_o,y_o,w_o)
     res=dict(dw=dw*1e-3,L=L*1e3,w_eff=we,harm_scale=float(al),harm_phase=float(phi2),
              sigma=float(s),phi0=float(p0),A=float(A),chi2=float(chi2),dof=int(dof),chi2_red=float(chi2/dof))
-    np.savez('/tmp/mode%s.npz'%tag,**res)
+    R.save_result(R.DEFAULT_RESULT if tag == 'B' else R.DEFAULT_RESULT.replace('.json', '_mode%s.json' % tag), res)
     print("mode %s [%.1fmin]: dw=%.1fmm L=%.1fkm phi2=%.0f alpha=%.2f sigma=%.0f  chi2/dof=%.2f"%(
         tag,(time.time()-t0)/60, dw,L,phi2,al,s, chi2/dof), flush=True)
     R.plot_overlay(res, lut, out='/tmp/mode%s_fit.pdf'%tag)
