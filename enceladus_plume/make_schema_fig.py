@@ -19,7 +19,7 @@ import tempfile
 
 import numpy as np
 
-from run_fit import _DATA, _cfg, _ensemble_smooth, _flux_curve  # noqa: E402
+from run_fit import _DATA, _cfg, _ensemble_smooth, _flux_curve, load_result, DEFAULT_RESULT, DEFAULT_LOOKUP  # noqa: E402
 from enceladus_plume.utils import build_width_series  # noqa: E402
 from enceladus_plume.liquid_dynamics.solver import liquid_dynamics  # noqa: E402
 from enceladus_plume.gas_dynamics.lookup import GasLookupTable  # noqa: E402
@@ -30,8 +30,10 @@ PAPER_PNG = "/home/sam2/dev/enceladus_plume_paper/Figures/Fig_schema.png"
 OUT = "/home/sam2/dev/enceladus_plume_paper/Figures/schematic_diurnal.pdf"
 
 
-def build(result_path, lookup_path):
-    r = dict(np.load(result_path))
+def build(result_path, lookup_path, out=OUT, simple=False, flybys=None):
+    """simple=True draws only the fitted ensemble curve vs the data (plus A/B/C markers);
+    flybys is an optional dict {label: mean anomaly deg} marked as ticks along the top."""
+    r = load_result(result_path)
     lut = GasLookupTable(lookup_path, clean=True)
     cfg = _cfg()
     dw, L, we = float(r["dw"]), float(r["L"]), float(r["w_eff"])
@@ -106,24 +108,46 @@ def build(result_path, lookup_path):
                 capsize=2, zorder=5, label="observed (Ingersoll+ 2020)")
     ax.plot(gcur, ens_n, "-", color="tab:red", lw=2.2,
             label="plume strength (fitted ensemble)")
-    ax.plot(obs, hD, "--", color="tab:blue", lw=1.8, label="water level $h/D$")
-    ax.plot(obs, wn_n, ":", color="tab:brown", lw=1.8,
-            label="crack width (normalized)")
+    if not simple:
+        ax.plot(obs, hD, "--", color="tab:blue", lw=1.8, label="water level $h/D$")
+        ax.plot(obs, wn_n, ":", color="tab:brown", lw=1.8,
+                label="crack width (normalized)")
+    if flybys:
+        # flybys: {label: [MA, MA, ...]} -- one tick per MA, one text per label (centered)
+        for lab, xs in flybys.items():
+            xs = np.atleast_1d(xs)
+            for x in xs:
+                ax.plot([x], [1.02], marker="v", color="tab:green", ms=7, clip_on=False, zorder=6)
+            ax.text(float(np.mean(xs)), 0.955, lab, ha="center", va="top", fontsize=7.5, color="tab:green")
+        ax.plot([], [], marker="v", ls="none", color="tab:green", label="Cassini CDA plume flybys")
     for lab, x in [("A", Asec), ("B", B), ("C", C)]:
         ax.axvline(x, color="0.35", ls=(0, (1, 1)), lw=1.0)
         ax.text(x, 1.10, lab, ha="center", va="bottom", fontsize=13, fontweight="bold")
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 90)); ax.set_ylim(0, 1.14)
     ax.set_xlabel("mean anomaly [deg]"); ax.set_ylabel("normalized")
-    ax.legend(fontsize=8.0, loc="upper left", bbox_to_anchor=(1.02, 1.0),
-              borderaxespad=0.0, framealpha=0.9); ax.grid(alpha=0.3)
+    if simple:
+        ax.legend(fontsize=8.0, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3, frameon=False)
+    else:
+        ax.legend(fontsize=8.0, loc="upper left", bbox_to_anchor=(1.02, 1.0),
+                  borderaxespad=0.0, framealpha=0.9)
+    ax.grid(alpha=0.3)
 
-    fig.savefig(OUT, dpi=200, bbox_inches="tight")
-    print(f"wrote {OUT}")
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--result", default=os.path.join(tempfile.gettempdir(), "diurnal_fit_mle.npz"))
-    ap.add_argument("--lookup", default=os.path.join(tempfile.gettempdir(), "encfig_lut.npz"))
+    ap.add_argument("--result", default=DEFAULT_RESULT)
+    ap.add_argument("--lookup", default=DEFAULT_LOOKUP)
+    ap.add_argument("--out", default=OUT)
+    ap.add_argument("--simple", action="store_true",
+                    help="only the fitted curve vs data (no water-level / width curves)")
+    ap.add_argument("--flybys", default=None,
+                    help="comma list label:MA[;MA...] to mark, e.g. 'E5 E17:208;209,E7:283'")
     args = ap.parse_args()
-    build(args.result, args.lookup)
+    fb = None
+    if args.flybys:   # e.g. "E21 E2:84;97,E18 E5 E17:200;208;209,E7 E3:283;291"
+        fb = {kv.split(":")[0]: [float(x) for x in kv.split(":")[1].split(";")]
+              for kv in args.flybys.split(",")}
+    build(args.result, args.lookup, out=args.out, simple=args.simple, flybys=fb)
